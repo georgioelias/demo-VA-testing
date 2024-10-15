@@ -16,7 +16,7 @@ export function ConsolePage() {
    * Directly assign your API key here
    * Replace 'YOUR_API_KEY_HERE' with your actual API key
    */
-  const apiKey = process.env.OPENAI_API_KEY; 
+  const apiKey = process.env.REACT_APP_OPENAI_API_KEY; 
 
   /**
    * Instantiate:
