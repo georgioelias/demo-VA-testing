@@ -305,35 +305,23 @@ export function ConsolePage() {
   return (
     <div data-component="ConsolePage">
       <div className="content-top">
-        <div className="content-title">
-          <span>Realtime API STS</span>
+        <div className="logo-wrapper">
+          <img src="/images/24SQ_black.png" alt="Logo Left" className="logo-left" />
+          <img src="/images/Abbott_Laboratories_logo.png" alt="Logo Right" className="logo-right" />
         </div>
-        <div className="connection-status">
-          {isConnected ? 'Connected' : 'Disconnected'}
+        <div className="content-title">
+          Your All-New&nbsp; <span className="highlight-word"> Voice CallBot </span> &nbsp;Prototype!
         </div>
       </div>
+  
       <div className="content-main">
         <div className="content-logs">
-          {/* Instructions Input */}
-          <div className="content-block instructions">
-            <div className="content-block-title">Instructions</div>
-            <div className="content-block-body">
-              <textarea
-                className="instructions-textarea"
-                value={instructionsText}
-                onChange={(e) => setInstructionsText(e.target.value)}
-                placeholder="Enter your instructions here..."
-                rows={4}
-                cols={50}
-              />
-              <button className="submit-button" onClick={handleSubmitInstructions}>
-                Submit Prompt
-              </button>
+          {/* Conversation Header (Title + Status) */}
+          <div className="conversation-header">
+            <div className="conversation-title">
+              Conversation
             </div>
-          </div>
-
-          {/* Visualization */}
-          <div className="visualization">
+            <div className="mini-visualization">
             <div className="visualization-entry client">
               <canvas ref={clientCanvasRef} />
             </div>
@@ -341,10 +329,13 @@ export function ConsolePage() {
               <canvas ref={serverCanvasRef} />
             </div>
           </div>
-
-          {/* Conversation */}
+            <span className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
+              {isConnected ? 'Connected' : 'Disconnected'}
+            </span>
+          </div>
+  
+          {/* Conversation Window with Border */}
           <div className="content-block conversation">
-            <div className="content-block-title">Conversation</div>
             <div className="content-block-body" data-conversation-content>
               {!items.length && `Awaiting connection...`}
               {items.map((conversationItem, i) => {
@@ -406,8 +397,9 @@ export function ConsolePage() {
                 );
               })}
             </div>
+  
           </div>
-
+  
           {/* Actions */}
           <div className="actions-container">
             <div className="content-actions">
@@ -432,24 +424,19 @@ export function ConsolePage() {
                 iconPosition={isConnected ? 'end' : 'start'}
                 icon={isConnected ? X : Zap}
                 buttonStyle={isConnected ? 'regular' : 'action'}
-                onClick={
-                  isConnected ? disconnectConversation : connectConversation
-                }
+                onClick={isConnected ? disconnectConversation : connectConversation}
               />
             </div>
-
-            {/* Visualization */}
-            <div className="visualization">
-              <div className="visualization-entry client">
-                <canvas ref={clientCanvasRef} />
-              </div>
-              <div className="visualization-entry server">
-                <canvas ref={serverCanvasRef} />
-              </div>
+  
+            {/* Copyright Section */}
+            <div className="copy-container">
+              <p>
+                <strong>Disclaimer:</strong> This is a prototype demo for Abbott to showcase functionality; it is not a full version, and the information may be incorrect. For demo purposes only.
+                <br /><br />
+                © 24SQ Ltd. 2024. Private and confidential.
+              </p>
             </div>
           </div>
-
-
         </div>
       </div>
     </div>
