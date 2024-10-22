@@ -908,7 +908,7 @@ Everything after this is a chat with a client.
           <img src="/images/Abbott_Laboratories_logo.png" alt="Logo Right" className="logo-right" />
         </div>
         <div className="content-title">
-          Your All-New&nbsp; <span className="highlight-word"> Voice CallBot </span> &nbsp;Prototype!
+          &nbsp; <span className="highlight-word"> Voice CallBot Demo </span> &nbsp;
         </div>
       </div>
   
