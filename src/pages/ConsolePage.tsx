@@ -1003,7 +1003,7 @@ Everything after this is a chat with a client.
             <div className="content-actions">
               <Toggle
                 defaultValue={false}
-                labels={['Manual', 'VAD']}
+                labels={['Manual', 'Automatic']}
                 values={['none', 'server_vad']}
                 onChange={(_, value) => changeTurnEndType(value)}
               />
