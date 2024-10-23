@@ -327,6 +327,9 @@ Alinity, a suite of diagnostic systems for laboratories and hospitals.
 Ensure, Nutritional supplements designed for adults and patients with specific dietary needs.
 Similac, Infant formula tailored to support the growth and development of babies.
 
+Q: What is your email address? / Please give me your website / What is your website and email address?
+A: Our email address is ADChelpuk@abbott.com and our website is www.freestyle.abbott/uk 
+
 </Abbott QAs>
 
 <FreeStyle Libre 2 QAs>
@@ -855,8 +858,6 @@ Send me Ready if you are ready to start the experiment
 </Rules>
 
 Everything after this is a chat with a client. 
-
-
  ` });
     // Set transcription, otherwise we don't get user transcriptions back
     client.updateSession({ input_audio_transcription: { model: 'whisper-1' } });
