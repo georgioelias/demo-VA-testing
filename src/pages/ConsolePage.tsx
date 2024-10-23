@@ -158,6 +158,14 @@ export function ConsolePage() {
     }
   };
 
+  
+  // Call this function when the component loads or when the connection starts.
+  useEffect(() => {
+    if (isConnected) {
+      initializeAutoMode();
+    }
+  }, [isConnected]);
+
   /**
    * Auto-scroll the conversation logs
    */
