@@ -144,19 +144,18 @@ export function ConsolePage() {
   /**
    * Switch between Manual <> VAD mode for communication
    */
-  const changeTurnEndType = async (value: string) => {
+  const initializeAutoMode = async () => {
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
-    if (value === 'none' && wavRecorder.getStatus() === 'recording') {
-      await wavRecorder.pause();
-    }
+
+    // Always set to server_vad mode
     client.updateSession({
-      turn_detection: value === 'none' ? null : { type: 'server_vad' },
+      turn_detection: { type: 'server_vad' },
     });
-    if (value === 'server_vad' && client.isConnected()) {
+
+    if (client.isConnected()) {
       await wavRecorder.record((data) => client.appendInputAudio(data.mono));
     }
-    setCanPushToTalk(value === 'none');
   };
 
   /**
@@ -908,135 +907,53 @@ Everything after this is a chat with a client.
           <img src="/images/Abbott_Laboratories_logo.png" alt="Logo Right" className="logo-right" />
         </div>
         <div className="content-title">
-          &nbsp; <span className="highlight-word"> Voice CallBot Demo </span> &nbsp;
+          &nbsp; <span className="highlight-word">Voice CallBot Demo</span> &nbsp;
         </div>
       </div>
   
       <div className="content-main">
-        <div className="content-logs">
-          {/* Conversation Header (Title + Status) */}
+        <div className="status-center">
+          {/* Status Icon and Soundwaves */}
           <div className="conversation-header">
-            <div className="conversation-title">
-              Conversation
+            {/* Use PNG icon above the soundwaves */}
+            <div className="status-icon">
+              <img src="/images/headphonesICON.png" alt="Status Icon" />
             </div>
             <div className="mini-visualization">
-            <div className="visualization-entry client">
-              <canvas ref={clientCanvasRef} />
-            </div>
-            <div className="visualization-entry server">
-              <canvas ref={serverCanvasRef} />
-            </div>
-          </div>
-            <span className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
-              {isConnected ? 'Connected' : 'Disconnected'}
-            </span>
-          </div>
-  
-          {/* Conversation Window with Border */}
-          <div className="content-block conversation">
-            <div className="content-block-body" data-conversation-content>
-              {!items.length && `Awaiting connection...`}
-              {items.map((conversationItem, i) => {
-                return (
-                  <div className="conversation-item" key={conversationItem.id}>
-                    <div className={`speaker ${conversationItem.role || ''}`}>
-                      <div>
-                        {(
-                          conversationItem.role || conversationItem.type
-                        ).replaceAll('_', ' ')}
-                      </div>
-                      <div
-                        className="close"
-                        onClick={() =>
-                          deleteConversationItem(conversationItem.id)
-                        }
-                      >
-                        <X />
-                      </div>
-                    </div>
-                    <div className={`speaker-content`}>
-                      {/* Tool response */}
-                      {conversationItem.type === 'function_call_output' && (
-                        <div>{conversationItem.formatted.output}</div>
-                      )}
-                      {/* Tool call */}
-                      {!!conversationItem.formatted.tool && (
-                        <div>
-                          {conversationItem.formatted.tool.name}(
-                          {conversationItem.formatted.tool.arguments})
-                        </div>
-                      )}
-                      {!conversationItem.formatted.tool &&
-                        conversationItem.role === 'user' && (
-                          <div>
-                            {conversationItem.formatted.transcript ||
-                              (conversationItem.formatted.audio?.length
-                                ? '(Awaiting transcript)'
-                                : conversationItem.formatted.text ||
-                                  '(Item sent)')}
-                          </div>
-                        )}
-                      {!conversationItem.formatted.tool &&
-                        conversationItem.role === 'assistant' && (
-                          <div>
-                            {conversationItem.formatted.transcript ||
-                              conversationItem.formatted.text ||
-                              '(Truncated)'}
-                          </div>
-                        )}
-                      {conversationItem.formatted.file && (
-                        <audio
-                          src={conversationItem.formatted.file.url}
-                          controls
-                        />
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-  
-          </div>
-  
-          {/* Actions */}
-          <div className="actions-container">
-            <div className="content-actions">
-              <Toggle
-                defaultValue={false}
-                labels={['Manual', 'Auto']}
-                values={['none', 'server_vad']}
-                onChange={(_, value) => changeTurnEndType(value)}
-              />
-              {isConnected && canPushToTalk && (
-                <Button
-                  label={isRecording ? 'Release to send' : 'Push to talk'}
-                  buttonStyle={isRecording ? 'alert' : 'regular'}
-                  disabled={!isConnected || !canPushToTalk}
-                  onMouseDown={startRecording}
-                  onMouseUp={stopRecording}
-                />
-              )}
-              <div className="spacer" />
-              <Button
-                label={isConnected ? 'Disconnect' : 'Connect'}
-                iconPosition={isConnected ? 'end' : 'start'}
-                icon={isConnected ? X : Zap}
-                buttonStyle={isConnected ? 'regular' : 'action'}
-                onClick={isConnected ? disconnectConversation : connectConversation}
-              />
-            </div>
-  
-            {/* Copyright Section */}
-            <div className="copy-container">
-              <p>
-                <strong>Disclaimer:</strong> This is a prototype demo for Abbott to showcase functionality; it is not a full version, and the information may be incorrect. For demo purposes only.
-                <br /><br />
-                © 24SQ Ltd. 2024. Private and confidential.
-              </p>
+              <div className="visualization-entry client">
+                <canvas ref={clientCanvasRef} />
+              </div>
+              <div className="visualization-entry server">
+                <canvas ref={serverCanvasRef} />
+              </div>
             </div>
           </div>
         </div>
+  
+        {/* Actions - Connect Button slightly down */}
+        <div className="actions-container">
+          <div className="content-actions-right">
+            <Button
+              label={isConnected ? 'Disconnect' : 'Connect'}
+              iconPosition={isConnected ? 'end' : 'start'}
+              icon={isConnected ? X : Zap}
+              buttonStyle={isConnected ? 'regular' : 'action'}
+              onClick={isConnected ? disconnectConversation : connectConversation}
+            />
+          </div>
+        </div>
+      </div>
+  
+      {/* Copyright Section */}
+      <div className="copy-container">
+        <p>
+          <strong>Disclaimer:</strong> This is a prototype demo for internal Abbott purposes; it is not a full version, and the information may be incorrect. For demo purposes only.
+          <br />
+          <br />
+          © 24SQ Ltd. 2024. Private and confidential.
+        </p>
       </div>
     </div>
   );
+  
 }
