@@ -1,10 +1,9 @@
+// ConsolePage.tsx
 import { useEffect, useRef, useCallback, useState } from 'react';
-
 import { RealtimeClient } from '@openai/realtime-api-beta';
 import { ItemType } from '@openai/realtime-api-beta/dist/lib/client.js';
 import { WavRecorder, WavStreamPlayer } from '../lib/wavtools/index.js';
 import { WavRenderer } from '../utils/wav_renderer';
-
 import { X, Zap } from 'react-feather';
 import { Button } from '../components/button/Button';
 import { Toggle } from '../components/toggle/Toggle';
@@ -12,18 +11,16 @@ import { Toggle } from '../components/toggle/Toggle';
 import './ConsolePage.scss';
 
 export function ConsolePage() {
-  /**
-   * Directly assign your API key here
-   * Replace 'YOUR_API_KEY_HERE' with your actual API key
-   */
+  // Authentication state
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState('');
+  const correctPassword = 'abbottx24sq';
+  
+  // Force re-render of canvases
+  const [canvasKey, setCanvasKey] = useState(0);
+  
   const apiKey = process.env.REACT_APP_OPENAI_API_KEY; 
 
-  /**
-   * Instantiate:
-   * - WavRecorder (speech input)
-   * - WavStreamPlayer (speech output)
-   * - RealtimeClient (API client)
-   */
   const wavRecorderRef = useRef<WavRecorder>(
     new WavRecorder({ sampleRate: 24000 })
   );
@@ -37,52 +34,49 @@ export function ConsolePage() {
     })
   );
 
-  /**
-   * References for
-   * - Rendering audio visualization (canvas)
-   */
   const clientCanvasRef = useRef<HTMLCanvasElement>(null);
   const serverCanvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Track animation frame
+  const animationFrameRef = useRef<number>();
 
-  /**
-   * All of our variables for displaying application state
-   * - items are all conversation items (dialog)
-   */
   const [items, setItems] = useState<ItemType[]>([]);
   const [isConnected, setIsConnected] = useState(false);
-  const [canPushToTalk, setCanPushToTalk] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [instructionsText, setInstructionsText] = useState(
     'You are a helpful assistant.'
   );
 
-  /**
-   * Connect to conversation:
-   * WavRecorder takes speech input, WavStreamPlayer output, client is API client
-   */
+  const handlePasswordSubmit = () => {
+    if (password === correctPassword) {
+      setIsAuthenticated(true);
+      // Force canvas re-initialization after authentication
+      setTimeout(() => {
+        setCanvasKey(prev => prev + 1);
+      }, 100);
+    } else {
+      alert('Incorrect password. Please try again.');
+    }
+  };
+  
+
+  // Connect to conversation
   const connectConversation = useCallback(async () => {
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
     const wavStreamPlayer = wavStreamPlayerRef.current;
 
-    // Set state variables
     setIsConnected(true);
     setItems(client.conversation.getItems());
 
-    // Connect to microphone
     await wavRecorder.begin();
-
-    // Connect to audio output
     await wavStreamPlayer.connect();
-
-    // Connect to realtime API
     await client.connect();
 
-    // Send initial message to start conversation
     client.sendUserMessageContent([
       {
-        type: `input_text`,
-        text: `Hello!`,
+        type: 'input_text',
+        text: 'Hello!',
       },
     ]);
 
@@ -91,9 +85,7 @@ export function ConsolePage() {
     }
   }, []);
 
-  /**
-   * Disconnect and reset conversation state
-   */
+  // Disconnect conversation
   const disconnectConversation = useCallback(async () => {
     setIsConnected(false);
     setItems([]);
@@ -108,47 +100,11 @@ export function ConsolePage() {
     await wavStreamPlayer.interrupt();
   }, []);
 
-  const deleteConversationItem = useCallback(async (id: string) => {
-    const client = clientRef.current;
-    client.deleteItem(id);
-  }, []);
-
-  /**
-   * In push-to-talk mode, start recording
-   * .appendInputAudio() for each sample
-   */
-  const startRecording = async () => {
-    setIsRecording(true);
-    const client = clientRef.current;
-    const wavRecorder = wavRecorderRef.current;
-    const wavStreamPlayer = wavStreamPlayerRef.current;
-    const trackSampleOffset = await wavStreamPlayer.interrupt();
-    if (trackSampleOffset?.trackId) {
-      const { trackId, offset } = trackSampleOffset;
-      await client.cancelResponse(trackId, offset);
-    }
-    await wavRecorder.record((data) => client.appendInputAudio(data.mono));
-  };
-
-  /**
-   * In push-to-talk mode, stop recording
-   */
-  const stopRecording = async () => {
-    setIsRecording(false);
-    const client = clientRef.current;
-    const wavRecorder = wavRecorderRef.current;
-    await wavRecorder.pause();
-    client.createResponse();
-  };
-
-  /**
-   * Switch between Manual <> VAD mode for communication
-   */
+  // Initialize auto mode
   const initializeAutoMode = async () => {
     const client = clientRef.current;
     const wavRecorder = wavRecorderRef.current;
 
-    // Always set to server_vad mode
     client.updateSession({
       turn_detection: { type: 'server_vad' },
     });
@@ -158,17 +114,16 @@ export function ConsolePage() {
     }
   };
 
-  
-  // Call this function when the component loads or when the connection starts.
-  useEffect(() => {
-    if (isConnected) {
-      initializeAutoMode();
+  // Separate canvas initialization function
+  const initializeCanvas = useCallback((canvas: HTMLCanvasElement) => {
+    if (!canvas.width || !canvas.height) {
+      canvas.width = canvas.offsetWidth;
+      canvas.height = canvas.offsetHeight;
     }
-  }, [isConnected]);
+    return canvas.getContext('2d');
+  }, []);
 
-  /**
-   * Auto-scroll the conversation logs
-   */
+  // Auto-scroll conversation logs
   useEffect(() => {
     const conversationEls = [].slice.call(
       document.body.querySelectorAll('[data-conversation-content]')
@@ -179,86 +134,18 @@ export function ConsolePage() {
     }
   }, [items]);
 
-  /**
-   * Set up render loops for the visualization canvas
-   */
+  // Initialize auto mode when connected
   useEffect(() => {
-    let isLoaded = true;
+    if (isConnected) {
+      initializeAutoMode();
+    }
+  }, [isConnected]);
 
-    const wavRecorder = wavRecorderRef.current;
-    const clientCanvas = clientCanvasRef.current;
-    let clientCtx: CanvasRenderingContext2D | null = null;
-
-    const wavStreamPlayer = wavStreamPlayerRef.current;
-    const serverCanvas = serverCanvasRef.current;
-    let serverCtx: CanvasRenderingContext2D | null = null;
-
-    const render = () => {
-      if (isLoaded) {
-        if (clientCanvas) {
-          if (!clientCanvas.width || !clientCanvas.height) {
-            clientCanvas.width = clientCanvas.offsetWidth;
-            clientCanvas.height = clientCanvas.offsetHeight;
-          }
-          clientCtx = clientCtx || clientCanvas.getContext('2d');
-          if (clientCtx) {
-            clientCtx.clearRect(0, 0, clientCanvas.width, clientCanvas.height);
-            const result = wavRecorder.recording
-              ? wavRecorder.getFrequencies('voice')
-              : { values: new Float32Array([0]) };
-            WavRenderer.drawBars(
-              clientCanvas,
-              clientCtx,
-              result.values,
-              '#0099ff',
-              10,
-              0,
-              8
-            );
-          }
-        }
-        if (serverCanvas) {
-          if (!serverCanvas.width || !serverCanvas.height) {
-            serverCanvas.width = serverCanvas.offsetWidth;
-            serverCanvas.height = serverCanvas.offsetHeight;
-          }
-          serverCtx = serverCtx || serverCanvas.getContext('2d');
-          if (serverCtx) {
-            serverCtx.clearRect(0, 0, serverCanvas.width, serverCanvas.height);
-            const result = wavStreamPlayer.analyser
-              ? wavStreamPlayer.getFrequencies('voice')
-              : { values: new Float32Array([0]) };
-            WavRenderer.drawBars(
-              serverCanvas,
-              serverCtx,
-              result.values,
-              '#009900',
-              10,
-              0,
-              8
-            );
-          }
-        }
-        window.requestAnimationFrame(render);
-      }
-    };
-    render();
-
-    return () => {
-      isLoaded = false;
-    };
-  }, []);
-
-  /**
-   * Core RealtimeClient and audio capture setup
-   * Set all of our instructions, events and more
-   */
+  // Set up RealtimeClient and audio
   useEffect(() => {
-    // Get refs
     const wavStreamPlayer = wavStreamPlayerRef.current;
     const client = clientRef.current;
 
-    // Set instructions
     client.updateSession({ instructions: ` <bio> Your name is LibreBot. You studied biomedical engineering and worked in customer support roles in the healthcare tech industry for five years. You are knowledgeable about diabetes management, particularly the FreeStyle Libre system, and can offer both technical and practical insights. You have a calm demeanor and are patient when explaining complicated subjects. You are also trained in basic troubleshooting for medical devices. You are friendly, empathetic, and confident, you know how to reassure customers and simplify complex medical or technical information without sounding condescending.
 </bio>
 
@@ -857,13 +744,11 @@ Send me Ready if you are ready to start the experiment
 
 </Rules>
 
-Everything after this is a chat with a client. 
- ` });
-    // Set transcription, otherwise we don't get user transcriptions back
+Everything after this is a chat with a client. ` });
     client.updateSession({ input_audio_transcription: { model: 'whisper-1' } });
 
-    // Handle realtime events from client + server for event logging
     client.on('error', (event: any) => console.error(event));
+    
     client.on('conversation.interrupted', async () => {
       const trackSampleOffset = await wavStreamPlayer.interrupt();
       if (trackSampleOffset?.trackId) {
@@ -871,13 +756,14 @@ Everything after this is a chat with a client.
         await client.cancelResponse(trackId, offset);
       }
     });
+
     client.on('conversation.updated', async ({ item, delta }: any) => {
       const items = client.conversation.getItems();
 
-      // Existing code for handling audio
       if (delta?.audio) {
         wavStreamPlayer.add16BitPCM(delta.audio, item.id);
       }
+      
       if (item.status === 'completed' && item.formatted.audio?.length) {
         const wavFile = await WavRecorder.decode(
           item.formatted.audio,
@@ -886,83 +772,173 @@ Everything after this is a chat with a client.
         );
         item.formatted.file = wavFile;
       }
+      
       setItems(items);
     });
 
     setItems(client.conversation.getItems());
 
     return () => {
-      // Cleanup; resets to defaults
       client.reset();
     };
   }, [instructionsText]);
 
-  /**
-   * Handle submitting new instructions
-   */
-  const handleSubmitInstructions = () => {
-    const client = clientRef.current;
-    client.updateSession({ instructions: instructionsText });
-  };
+  // Visualization effect
+  useEffect(() => {
+    let isLoaded = true;
+    
+    const setupCanvasRendering = () => {
+      const wavRecorder = wavRecorderRef.current;
+      const wavStreamPlayer = wavStreamPlayerRef.current;
+      const clientCanvas = clientCanvasRef.current;
+      const serverCanvas = serverCanvasRef.current;
+      
+      let clientCtx: CanvasRenderingContext2D | null = null;
+      let serverCtx: CanvasRenderingContext2D | null = null;
 
-  /**
-   * Render the application
-   */
+      if (clientCanvas) {
+        clientCtx = initializeCanvas(clientCanvas);
+      }
+      
+      if (serverCanvas) {
+        serverCtx = initializeCanvas(serverCanvas);
+      }
+
+      const render = () => {
+        if (!isLoaded) return;
+
+        if (clientCanvas && clientCtx) {
+          clientCtx.clearRect(0, 0, clientCanvas.width, clientCanvas.height);
+          const result = wavRecorder.recording
+            ? wavRecorder.getFrequencies('voice')
+            : { values: new Float32Array([0]) };
+          WavRenderer.drawBars(
+            clientCanvas,
+            clientCtx,
+            result.values,
+            '#0099ff',
+            10,
+            0,
+            8
+          );
+        }
+
+        if (serverCanvas && serverCtx) {
+          serverCtx.clearRect(0, 0, serverCanvas.width, serverCanvas.height);
+          const result = wavStreamPlayer.analyser
+            ? wavStreamPlayer.getFrequencies('voice')
+            : { values: new Float32Array([0]) };
+          WavRenderer.drawBars(
+            serverCanvas,
+            serverCtx,
+            result.values,
+            '#009900',
+            10,
+            0,
+            8
+          );
+        }
+
+        animationFrameRef.current = window.requestAnimationFrame(render);
+      };
+
+      render();
+    };
+
+    if (isAuthenticated) {
+      setupCanvasRendering();
+    }
+
+    return () => {
+      isLoaded = false;
+      if (animationFrameRef.current) {
+        window.cancelAnimationFrame(animationFrameRef.current);
+      }
+    };
+  }, [isAuthenticated, canvasKey, initializeCanvas]);
+
+  // Window resize handler
+  useEffect(() => {
+    const handleResize = () => {
+      setCanvasKey(prev => prev + 1);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   return (
     <div data-component="ConsolePage">
-      <div className="content-top">
-        <div className="logo-wrapper">
-          <img src="/images/24SQ_black.png" alt="Logo Left" className="logo-left" />
-          <img src="/images/Abbott_Laboratories_logo.png" alt="Logo Right" className="logo-right" />
+      {!isAuthenticated ? (
+        <div className="password-overlay">
+          <h2>Enter Password to Access</h2>
+          <input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+          <button onClick={handlePasswordSubmit}>Submit</button>
         </div>
-        <div className="content-title">
-          &nbsp; <span className="highlight-word">Voice CallBot Demo</span> &nbsp;
-        </div>
-      </div>
-  
-      <div className="content-main">
-        <div className="status-center">
-          {/* Status Icon and Soundwaves */}
-          <div className="conversation-header">
-            {/* Use PNG icon above the soundwaves */}
-            <div className="status-icon">
-              <img src="/images/headphonesICON.png" alt="Status Icon" />
+      ) : (
+        <div className="main-content">
+          <div className="content-top">
+            <div className="logo-wrapper">
+              <img src="/images/24SQ_black.png" alt="Logo Left" className="logo-left" />
+              <img src="/images/Abbott_Laboratories_logo.png" alt="Logo Right" className="logo-right" />
             </div>
-            <div className="mini-visualization">
-              <div className="visualization-entry client">
-                <canvas ref={clientCanvasRef} />
+            <div className="content-title">
+              &nbsp; <span className="highlight-word">Voice CallBot Demo</span> &nbsp;
+            </div>
+          </div>
+
+          <div className="content-main">
+            <div className="status-center">
+              <div className="conversation-header">
+                <div className="status-icon">
+                  <img src="/images/headphonesICON.png" alt="Status Icon" />
+                </div>
+                <div className="mini-visualization">
+                  <div className="visualization-entry client">
+                    <canvas 
+                      key={`client-${canvasKey}`}
+                      ref={clientCanvasRef}
+                    />
+                  </div>
+                  <div className="visualization-entry server">
+                    <canvas 
+                      key={`server-${canvasKey}`}
+                      ref={serverCanvasRef}
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="visualization-entry server">
-                <canvas ref={serverCanvasRef} />
+            </div>
+
+            <div className="actions-container">
+              <div className="content-actions-right">
+                <Button
+                  label={isConnected ? 'Disconnect' : 'Connect'}
+                  iconPosition={isConnected ? 'end' : 'start'}
+                  icon={isConnected ? X : Zap}
+                  buttonStyle={isConnected ? 'regular' : 'action'}
+                  onClick={isConnected ? disconnectConversation : connectConversation}
+                />
               </div>
             </div>
           </div>
-        </div>
-  
-        {/* Actions - Connect Button slightly down */}
-        <div className="actions-container">
-          <div className="content-actions-right">
-            <Button
-              label={isConnected ? 'Disconnect' : 'Connect'}
-              iconPosition={isConnected ? 'end' : 'start'}
-              icon={isConnected ? X : Zap}
-              buttonStyle={isConnected ? 'regular' : 'action'}
-              onClick={isConnected ? disconnectConversation : connectConversation}
-            />
+
+          <div className="copy-container">
+            <p>
+              <strong>Disclaimer:</strong> This is a prototype demo for Abbott to showcase functionality; it is not a full
+              version, and the information may be incorrect. For demo purposes only.
+              <br />
+              <br />
+              © 24SQ Ltd. 2024. Private and confidential.
+            </p>
           </div>
         </div>
-      </div>
-  
-      {/* Copyright Section */}
-      <div className="copy-container">
-        <p>
-          <strong>Disclaimer:</strong> This is a prototype demo for internal Abbott purposes; it is not a full version, and the information may be incorrect. For demo purposes only.
-          <br />
-          <br />
-          © 24SQ Ltd. 2024. Private and confidential.
-        </p>
-      </div>
+      )}
     </div>
   );
-  
 }
